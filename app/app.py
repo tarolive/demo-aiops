@@ -67,9 +67,9 @@ prometheus_connect = PrometheusConnect(
 )
 
 metric_name   = 'pod:container_cpu_usage:sum'
-start_time    = parse_datetime('1h')
+start_time    = parse_datetime('30m')
 end_time      = parse_datetime('now')
-chunk_size    = timedelta(minutes = 1)
+chunk_size    = timedelta(seconds = 30)
 lookback      = 4
 scaler        = MinMaxScaler(feature_range = (-1, 1))
 loss_function = MSELoss()
