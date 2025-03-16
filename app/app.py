@@ -1,7 +1,6 @@
 from copy                        import deepcopy
 from datetime                    import timedelta
 from flask                       import Flask, request
-from json                        import dumps
 from os                          import getenv
 from prometheus_api_client       import MetricSnapshotDataFrame, PrometheusConnect
 from prometheus_api_client.utils import parse_datetime
@@ -60,19 +59,33 @@ def transform_and_normalize(metric_data, lookback):
     return metric_data
 
 
+def sendMessage(chat_id, text, reply_markup = None):
+
+    params = {
+        'chat_id'      : chat_id,
+        'text'         : text,
+        'reply_markup' : reply_markup
+    }
+
+    api = f'{ TELEGRAM_API }/sendMessage'
+    get(url = api, params = params)
+
+
 prometheus_connect = PrometheusConnect(
     url         = PROMETHEUS_URL,
     headers     = { 'Authorization' : f'bearer { PROMETHEUS_TOKEN }' },
     disable_ssl = True
 )
 
-metric_name   = 'pod:container_cpu_usage:sum'
-start_time    = parse_datetime('30m')
-end_time      = parse_datetime('now')
-chunk_size    = timedelta(seconds = 30)
-lookback      = 4
-scaler        = MinMaxScaler(feature_range = (-1, 1))
-loss_function = MSELoss()
+metric_name       = 'pod:container_cpu_usage:sum'
+start_time        = parse_datetime('30m')
+end_time          = parse_datetime('now')
+chunk_size        = timedelta(seconds = 30)
+lookback          = 4
+scaler            = MinMaxScaler(feature_range = (-1, 1))
+loss_function     = MSELoss()
+anomaly_threshold = 0.5
+chat_ids          = []
 
 label_config = {
     'prometheus' : 'openshift-monitoring/k8s',
@@ -87,7 +100,31 @@ model.eval()
 app = Flask(__name__)
 
 
-@app.route('/', methods = ['GET'])
+@app.route('/', methods = ['POST'])
+def add_to_chat_ids() -> dict:
+
+    message = request.json
+    text    = message['text']
+    chat_id = message['chat']['id']
+
+    if text.startswith('/start'):
+
+        sendMessage(chat_id, 'Hello... The app is working!')
+        return {}
+
+    if text.startswith('/add'):
+
+        if chat_id not in chat_ids:
+
+            chat_ids.append(chat_id)
+
+        sendMessage(chat_id, f'Chat id { chat_id } added to chat ids and will receive messages!')
+        return {}
+
+    return {}
+
+
+@app.route('/predict', methods = ['GET'])
 def predict() -> None:
 
     metric_data = prometheus_connect.get_metric_range_data(
@@ -108,6 +145,18 @@ def predict() -> None:
     metric_data = metric_data.to('cpu')
 
     predicted = model(metric_data)
-    loss      = loss_function(predicted, metric_data[:, 0])
+    loss      = loss_function(predicted, metric_data[:, 0]).detach().numpy()
 
-    print(loss)
+    message = 'Namespace: {0} | Loss: {1:.3f} | Anomaly threshold: {2:.3f}'.format(NAMESPACE, loss, anomaly_threshold)
+
+    if loss <= anomaly_threshold:
+
+        print(f'{message} | Anomaly not detected!')
+        return
+
+    message = f'{message} | Anomaly detected!'
+    print(message)
+
+    for chat_id in chat_ids:
+
+        sendMessage(chat_id, message)
