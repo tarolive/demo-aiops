@@ -125,7 +125,7 @@ def add_to_chat_ids() -> dict:
 
 
 @app.route('/predict', methods = ['GET'])
-def predict() -> None:
+def predict() -> dict:
 
     metric_data = prometheus_connect.get_metric_range_data(
         metric_name  = metric_name,
@@ -144,19 +144,22 @@ def predict() -> None:
     metric_data = tensor(metric_data).float()
     metric_data = metric_data.to('cpu')
 
-    predicted = model(metric_data)
-    loss      = loss_function(predicted, metric_data[:, 0]).detach().numpy()
+    predicted   = model(metric_data)
+    loss        = loss_function(predicted, metric_data[:, 0]).detach().numpy()
+    has_anomaly = loss <= anomaly_threshold
 
-    message = 'Namespace: {0} | Loss: {1:.3f} | Anomaly threshold: {2:.3f}'.format(NAMESPACE, loss, anomaly_threshold)
-
-    if loss <= anomaly_threshold:
-
-        print(f'{message} | Anomaly not detected!')
-        return
-
-    message = f'{message} | Anomaly detected!'
+    message = 'Namespace: {0} | Loss: {1:.3f} | Anomaly threshold: {2:.3f} | {3}'.format(
+        NAMESPACE,
+        loss,
+        anomaly_threshold,
+        'Anomaly detected!' if has_anomaly else 'No anomalies...'
+    )
     print(message)
 
-    for chat_id in chat_ids:
+    if has_anomaly:
 
-        sendMessage(chat_id, message)
+        for chat_id in chat_ids:
+
+            sendMessage(chat_id, message)
+
+    return { 'result' : message }
