@@ -77,15 +77,7 @@ prometheus_connect = PrometheusConnect(
     disable_ssl = True
 )
 
-metric_name       = 'pod:container_cpu_usage:sum'
-start_time        = parse_datetime('30m')
-end_time          = parse_datetime('now')
-chunk_size        = timedelta(seconds = 30)
-lookback          = 4
-scaler            = MinMaxScaler(feature_range = (-1, 1))
-loss_function     = MSELoss()
-anomaly_threshold = 0.5
-chat_ids          = []
+chat_ids = []
 
 label_config = {
     'prometheus' : 'openshift-monitoring/k8s',
@@ -126,6 +118,15 @@ def add_to_chat_ids() -> dict:
 
 @app.route('/predict', methods = ['GET', 'POST'])
 def predict() -> dict:
+
+    metric_name       = 'pod:container_cpu_usage:sum'
+    start_time        = parse_datetime('30m')
+    end_time          = parse_datetime('now')
+    chunk_size        = timedelta(seconds = 30)
+    lookback          = 4
+    scaler            = MinMaxScaler(feature_range = (-1, 1))
+    loss_function     = MSELoss()
+    anomaly_threshold = 0.5
 
     metric_data = prometheus_connect.get_metric_range_data(
         metric_name  = metric_name,
