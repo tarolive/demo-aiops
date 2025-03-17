@@ -146,7 +146,7 @@ def predict() -> dict:
 
     predicted   = model(metric_data)
     loss        = loss_function(predicted, metric_data[:, 0]).detach().numpy()
-    has_anomaly = loss <= anomaly_threshold
+    has_anomaly = loss > anomaly_threshold
 
     message = 'Namespace: {0} | Loss: {1:.3f} | Anomaly threshold: {2:.3f} | {3}'.format(
         NAMESPACE,
