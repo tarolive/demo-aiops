@@ -124,7 +124,7 @@ def add_to_chat_ids() -> dict:
     return {}
 
 
-@app.route('/predict', methods = ['GET'])
+@app.route('/predict', methods = ['GET', 'POST'])
 def predict() -> dict:
 
     metric_data = prometheus_connect.get_metric_range_data(
