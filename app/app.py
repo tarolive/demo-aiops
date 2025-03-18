@@ -126,7 +126,7 @@ def predict() -> dict:
     lookback          = 4
     scaler            = MinMaxScaler(feature_range = (-1, 1))
     loss_function     = MSELoss()
-    anomaly_threshold = 0.5
+    anomaly_threshold = 1.0
 
     metric_data = prometheus_connect.get_metric_range_data(
         metric_name  = metric_name,
